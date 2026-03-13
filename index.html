@@ -152,12 +152,14 @@ th{
   </table>
 </div>
 
+
 <script>
 const SUPABASE_URL = "https://brzdyerxpjsgltmufhkh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_81-lBmd-xm4Ayv9IwGBW5A_DIU-U6a9";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let editingId = null;
+let storesCache = [];
 
 async function loadStores(){
   const { data, error } = await client
@@ -171,15 +173,24 @@ async function loadStores(){
     return;
   }
 
+  storesCache = data || [];
+
   const select = document.getElementById("store");
   select.innerHTML = "";
 
-  data.forEach(store => {
+  storesCache.forEach(store => {
     const option = document.createElement("option");
     option.value = store.id;
     option.textContent = store.name;
     select.appendChild(option);
   });
+}
+
+function buildStoreOptions(selected){
+  return storesCache.map(s=>{
+    const sel = Number(selected)===Number(s.id) ? "selected":"";
+    return `<option value="${s.id}" ${sel}>${escapeHtml(s.name)}</option>`;
+  }).join("");
 }
 
 async function loadRecruits(){
@@ -209,136 +220,136 @@ async function loadRecruits(){
   data.forEach(r => {
     const tr = document.createElement("tr");
 
-    tr.innerHTML = `
-      <td>${escapeHtml(r.name || "")}</td>
-      <td>${escapeHtml(r.stores?.name || "")}</td>
-      <td>${escapeHtml(r.source || "")}</td>
-      <td><span class="status-text">${escapeHtml(r.status || "")}</span></td>
-      <td>${escapeHtml(r.start_date || "")}</td>
-      <td>${escapeHtml(r.memo || "")}</td>
+    if(editingId === r.id){
+      tr.innerHTML = `
+      <td><input id="edit_name_${r.id}" value="${escapeHtml(r.name||"")}" /></td>
       <td>
-        <div class="action-buttons">
-          <button type="button" class="edit-btn" onclick="startEdit(${r.id}, ${r.store_id ?? 'null'}, '${jsSafe(r.name || "")}', '${jsSafe(r.source || "")}', '${jsSafe(r.status || "")}', '${jsSafe(r.start_date || "")}', '${jsSafe(r.memo || "")}')">編集</button>
-          <button type="button" class="delete-btn" onclick="deleteRecruit(${r.id})">削除</button>
-        </div>
+        <select id="edit_store_${r.id}">
+          ${buildStoreOptions(r.store_id)}
+        </select>
       </td>
-    `;
+      <td>
+        <select id="edit_source_${r.id}">
+          <option ${r.source==="飲食店.com"?"selected":""}>飲食店.com</option>
+          <option ${r.source==="クックビズ"?"selected":""}>クックビズ</option>
+        </select>
+      </td>
+      <td>
+        <select id="edit_status_${r.id}">
+          <option ${r.status==="内定"?"selected":""}>内定</option>
+          <option ${r.status==="承諾"?"selected":""}>承諾</option>
+          <option ${r.status==="辞退"?"selected":""}>辞退</option>
+        </select>
+      </td>
+      <td>
+        <input type="date" id="edit_date_${r.id}" value="${escapeHtml(r.start_date||"")}" />
+      </td>
+      <td>
+        <input id="edit_memo_${r.id}" value="${escapeHtml(r.memo||"")}" />
+      </td>
+      <td>
+        <button onclick="saveEdit(${r.id})">保存</button>
+        <button onclick="cancelEdit()">キャンセル</button>
+      </td>`;
+    }else{
+      tr.innerHTML = `
+      <td>${escapeHtml(r.name||"")}</td>
+      <td>${escapeHtml(r.stores?.name||"")}</td>
+      <td>${escapeHtml(r.source||"")}</td>
+      <td>${escapeHtml(r.status||"")}</td>
+      <td>${escapeHtml(r.start_date||"")}</td>
+      <td>${escapeHtml(r.memo||"")}</td>
+      <td>
+        <button onclick="startEdit(${r.id})">編集</button>
+        <button onclick="deleteRecruit(${r.id})">削除</button>
+      </td>`;
+    }
 
     tbody.appendChild(tr);
   });
 }
 
-function startEdit(id, storeId, name, source, status, startDate, memo){
+function startEdit(id){
   editingId = id;
-
-  document.getElementById("name").value = name;
-  document.getElementById("store").value = storeId ?? "";
-  document.getElementById("source").value = source;
-  document.getElementById("status").value = status;
-  document.getElementById("start_date").value = startDate;
-  document.getElementById("memo").value = memo;
-
-  document.getElementById("submitBtn").textContent = "更新";
-  document.getElementById("cancelEditBtn").style.display = "inline-block";
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  loadRecruits();
 }
 
-function resetForm(){
+function cancelEdit(){
   editingId = null;
-  document.getElementById("recruitForm").reset();
-  document.getElementById("submitBtn").textContent = "登録";
-  document.getElementById("cancelEditBtn").style.display = "none";
+  loadRecruits();
+}
+
+async function saveEdit(id){
+  const name = document.getElementById(`edit_name_${id}`).value;
+  const store_id = document.getElementById(`edit_store_${id}`).value;
+  const source = document.getElementById(`edit_source_${id}`).value;
+  const status = document.getElementById(`edit_status_${id}`).value;
+  const start_date = document.getElementById(`edit_date_${id}`).value;
+  const memo = document.getElementById(`edit_memo_${id}`).value;
+
+  const { error } = await client
+    .from("recruits")
+    .update({name,store_id,source,status,start_date,memo})
+    .eq("id",id);
+
+  if(error){
+    alert("更新失敗");
+    console.error(error);
+    return;
+  }
+
+  editingId=null;
+  loadRecruits();
 }
 
 async function deleteRecruit(id){
-  const ok = confirm("このデータを削除しますか？");
-  if (!ok) return;
+  if(!confirm("削除しますか？")) return;
 
   const { error } = await client
     .from("recruits")
     .delete()
     .eq("id", id);
 
-  if (error) {
-    alert("削除に失敗しました");
+  if(error){
+    alert("削除失敗");
     console.error(error);
     return;
   }
 
-  if (editingId === id) {
-    resetForm();
-  }
-
-  await loadRecruits();
+  loadRecruits();
 }
 
 document.getElementById("recruitForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const name = document.getElementById("name").value.trim();
-  const store_id = Number(document.getElementById("store").value);
+  const name = document.getElementById("name").value;
+  const store_id = document.getElementById("store").value;
   const source = document.getElementById("source").value;
   const status = document.getElementById("status").value;
-  const start_date = document.getElementById("start_date").value || null;
-  const memo = document.getElementById("memo").value.trim();
+  const start_date = document.getElementById("start_date").value;
+  const memo = document.getElementById("memo").value;
 
-  if (!name) {
-    alert("氏名を入力してください");
-    return;
-  }
+  const { error } = await client
+    .from("recruits")
+    .insert({name,store_id,source,status,start_date,memo});
 
-  const payload = {
-    name,
-    store_id,
-    source,
-    status,
-    start_date,
-    memo
-  };
-
-  let error = null;
-
-  if (editingId === null) {
-    const result = await client.from("recruits").insert(payload);
-    error = result.error;
-  } else {
-    const result = await client
-      .from("recruits")
-      .update(payload)
-      .eq("id", editingId);
-    error = result.error;
-  }
-
-  if (error) {
-    alert(editingId === null ? "登録に失敗しました" : "更新に失敗しました");
+  if(error){
+    alert("登録失敗");
     console.error(error);
     return;
   }
 
-  resetForm();
-  await loadRecruits();
-});
-
-document.getElementById("cancelEditBtn").addEventListener("click", () => {
-  resetForm();
+  document.getElementById("recruitForm").reset();
+  loadRecruits();
 });
 
 function escapeHtml(str){
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function jsSafe(str){
-  return str
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "\\'")
-    .replace(/\n/g, "\\n")
-    .replace(/\r/g, "");
+  return String(str)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 }
 
 (async function init(){
