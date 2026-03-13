@@ -13,107 +13,98 @@ body{
   padding:20px;
   margin:0;
 }
-
 h1{
   margin:0 0 20px 0;
   font-size:24px;
 }
-
 .wrap{
   background:#fff;
   padding:20px;
   margin-bottom:20px;
 }
-
 form{
   display:flex;
   flex-wrap:wrap;
   gap:12px;
   align-items:flex-end;
 }
-
 .form-group{
   display:flex;
   flex-direction:column;
   gap:6px;
 }
-
 .form-group label{
   font-size:13px;
   font-weight:600;
   color:#333;
 }
-
 input, select, button{
   padding:10px 12px;
   font-size:14px;
   box-sizing:border-box;
 }
-
 input[type="text"], input[type="date"], select{
   min-width:160px;
 }
-
 button{
   cursor:pointer;
 }
-
 table{
   width:100%;
   border-collapse:collapse;
   background:#fff;
+  min-width:1400px;
 }
-
 th, td{
   border:1px solid #ddd;
   padding:10px;
   text-align:left;
   vertical-align:middle;
 }
-
 th{
   background:#eee;
 }
-
 .action-buttons{
   display:flex;
   gap:8px;
+  flex-wrap:wrap;
 }
-
 .edit-btn{
   background:#f3f3f3;
   border:1px solid #bbb;
 }
-
 .delete-btn{
   background:#fff0f0;
   border:1px solid #d88;
 }
-
-#cancelEditBtn{
-  display:none;
+.save-btn{
+  background:#eef8ee;
+  border:1px solid #8bbf8b;
 }
-
-.status-text{
-  font-weight:600;
+.cancel-btn{
+  background:#f8f8f8;
+  border:1px solid #bbb;
 }
-
+.inline-input,
+.inline-select{
+  width:100%;
+  min-width:120px;
+  padding:8px;
+  font-size:14px;
+}
+.table-wrap{
+  overflow-x:auto;
+}
 @media screen and (max-width: 768px){
   form{
     flex-direction:column;
     align-items:stretch;
   }
-
-  input[type="text"], input[type="date"], select, button{
+  .form-group{
     width:100%;
   }
-
-  .table-wrap{
-    overflow-x:auto;
-  }
-
-  table{
-    min-width:1000px;
+  input[type="text"], input[type="date"], select, button{
+    width:100%;
   }
 }
 </style>
@@ -191,14 +182,13 @@ th{
   </table>
 </div>
 
-
 <script>
 const SUPABASE_URL = "https://brzdyerxpjsgltmufhkh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_81-lBmd-xm4Ayv9IwGBW5A_DIU-U6a9";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let editingId = null;
 let storesCache = [];
+let editingId = null;
 
 async function loadStores(){
   const { data, error } = await client
@@ -225,10 +215,10 @@ async function loadStores(){
   });
 }
 
-function buildStoreOptions(selected){
-  return storesCache.map(s=>{
-    const sel = Number(selected)===Number(s.id) ? "selected":"";
-    return `<option value="${s.id}" ${sel}>${escapeHtml(s.name)}</option>`;
+function buildStoreOptions(selectedId){
+  return storesCache.map(store => {
+    const selected = Number(selectedId) === Number(store.id) ? "selected" : "";
+    return `<option value="${store.id}" ${selected}>${escapeHtml(store.name)}</option>`;
   }).join("");
 }
 
@@ -260,50 +250,53 @@ async function loadRecruits(){
   data.forEach(r => {
     const tr = document.createElement("tr");
 
-    if(editingId === r.id){
+    if (editingId === r.id) {
       tr.innerHTML = `
-      <td><input id="edit_name_${r.id}" value="${escapeHtml(r.name||"")}" /></td>
-      <td>
-        <select id="edit_store_${r.id}">
-          ${buildStoreOptions(r.store_id)}
-        </select>
-      </td>
-      <td>
-        <select id="edit_source_${r.id}">
-          <option ${r.source==="飲食店.com"?"selected":""}>飲食店.com</option>
-          <option ${r.source==="クックビズ"?"selected":""}>クックビズ</option>
-        </select>
-      </td>
-      <td>
-        <select id="edit_status_${r.id}">
-          <option ${r.status==="内定"?"selected":""}>内定</option>
-          <option ${r.status==="承諾"?"selected":""}>承諾</option>
-          <option ${r.status==="辞退"?"selected":""}>辞退</option>
-        </select>
-      </td>
-      <td>
-        <input type="date" id="edit_date_${r.id}" value="${escapeHtml(r.start_date||"")}" />
-      </td>
-      <td>
-        <input id="edit_memo_${r.id}" value="${escapeHtml(r.memo||"")}" />
-      </td>
-      <td>
-        <button onclick="saveEdit(${r.id})">保存</button>
-        <button onclick="cancelEdit()">キャンセル</button>
-      </td>`;
-    }else{
+        <td><input class="inline-input" type="text" id="edit_name_${r.id}" value="${escapeHtml(r.name || "")}"></td>
+        <td>
+          <select class="inline-select" id="edit_store_${r.id}">
+            ${buildStoreOptions(r.store_id)}
+          </select>
+        </td>
+        <td>
+          <select class="inline-select" id="edit_source_${r.id}">
+            <option value="飲食店.com" ${r.source === "飲食店.com" ? "selected" : ""}>飲食店.com</option>
+            <option value="クックビズ" ${r.source === "クックビズ" ? "selected" : ""}>クックビズ</option>
+          </select>
+        </td>
+        <td>
+          <select class="inline-select" id="edit_status_${r.id}">
+            <option value="内定" ${r.status === "内定" ? "selected" : ""}>内定</option>
+            <option value="承諾" ${r.status === "承諾" ? "selected" : ""}>承諾</option>
+            <option value="辞退" ${r.status === "辞退" ? "selected" : ""}>辞退</option>
+          </select>
+        </td>
+        <td><input class="inline-input" type="date" id="edit_offer_notice_date_${r.id}" value="${escapeHtml(r.offer_notice_date || "")}"></td>
+        <td><input class="inline-input" type="date" id="edit_start_date_${r.id}" value="${escapeHtml(r.start_date || "")}"></td>
+        <td><input class="inline-input" type="text" id="edit_memo_${r.id}" value="${escapeHtml(r.memo || "")}"></td>
+        <td>
+          <div class="action-buttons">
+            <button type="button" class="save-btn" onclick="saveEdit(${r.id})">保存</button>
+            <button type="button" class="cancel-btn" onclick="cancelEdit()">キャンセル</button>
+          </div>
+        </td>
+      `;
+    } else {
       tr.innerHTML = `
-      <td>${escapeHtml(r.name||"")}</td>
-      <td>${escapeHtml(r.stores?.name||"")}</td>
-      <td>${escapeHtml(r.source||"")}</td>
-      <td>${escapeHtml(r.status||"")}</td>
-      <td>${escapeHtml(r.offer_notice_date||"")}</td>
-      <td>${escapeHtml(r.start_date||"")}</td>
-      <td>${escapeHtml(r.memo||"")}</td>
-      <td>
-        <button onclick="startEdit(${r.id})">編集</button>
-        <button onclick="deleteRecruit(${r.id})">削除</button>
-      </td>`;
+        <td>${escapeHtml(r.name || "")}</td>
+        <td>${escapeHtml(r.stores?.name || "")}</td>
+        <td>${escapeHtml(r.source || "")}</td>
+        <td>${escapeHtml(r.status || "")}</td>
+        <td>${escapeHtml(r.offer_notice_date || "")}</td>
+        <td>${escapeHtml(r.start_date || "")}</td>
+        <td>${escapeHtml(r.memo || "")}</td>
+        <td>
+          <div class="action-buttons">
+            <button type="button" class="edit-btn" onclick="startEdit(${r.id})">編集</button>
+            <button type="button" class="delete-btn" onclick="deleteRecruit(${r.id})">削除</button>
+          </div>
+        </td>
+      `;
     }
 
     tbody.appendChild(tr);
@@ -321,77 +314,113 @@ function cancelEdit(){
 }
 
 async function saveEdit(id){
-  const name = document.getElementById(`edit_name_${id}`).value;
-  const store_id = document.getElementById(`edit_store_${id}`).value;
+  const name = document.getElementById(`edit_name_${id}`).value.trim();
+  const store_id = Number(document.getElementById(`edit_store_${id}`).value);
   const source = document.getElementById(`edit_source_${id}`).value;
   const status = document.getElementById(`edit_status_${id}`).value;
-  const start_date = document.getElementById(`edit_date_${id}`).value;
-  const memo = document.getElementById(`edit_memo_${id}`).value;
+  const offer_notice_date = document.getElementById(`edit_offer_notice_date_${id}`).value || null;
+  const start_date = document.getElementById(`edit_start_date_${id}`).value || null;
+  const memo = document.getElementById(`edit_memo_${id}`).value.trim();
+
+  if (!name) {
+    alert("氏名を入力してください");
+    return;
+  }
 
   const { error } = await client
     .from("recruits")
-    .update({name,store_id,source,status,start_date,memo})
-    .eq("id",id);
+    .update({
+      name,
+      store_id,
+      source,
+      status,
+      offer_notice_date,
+      start_date,
+      memo
+    })
+    .eq("id", id);
 
-  if(error){
-    alert("更新失敗");
+  if (error) {
+    alert("更新に失敗しました");
     console.error(error);
     return;
   }
 
-  editingId=null;
-  loadRecruits();
+  editingId = null;
+  await loadRecruits();
 }
 
 async function deleteRecruit(id){
-  if(!confirm("削除しますか？")) return;
+  const ok = confirm("このデータを削除しますか？");
+  if (!ok) return;
 
   const { error } = await client
     .from("recruits")
     .delete()
     .eq("id", id);
 
-  if(error){
-    alert("削除失敗");
+  if (error) {
+    alert("削除に失敗しました");
     console.error(error);
     return;
   }
 
-  loadRecruits();
+  if (editingId === id) {
+    editingId = null;
+  }
+
+  await loadRecruits();
 }
 
 document.getElementById("recruitForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const name = document.getElementById("name").value;
-  const store_id = document.getElementById("store").value;
+  const name = document.getElementById("name").value.trim();
+  const store_id = Number(document.getElementById("store").value);
   const source = document.getElementById("source").value;
   const status = document.getElementById("status").value;
-  const offer_notice_date = document.getElementById("offer_notice_date").value;
-  const start_date = document.getElementById("start_date").value;
-  const memo = document.getElementById("memo").value;
+  const offer_notice_date = document.getElementById("offer_notice_date").value || null;
+  const start_date = document.getElementById("start_date").value || null;
+  const memo = document.getElementById("memo").value.trim();
+
+  if (!name) {
+    alert("氏名を入力してください");
+    return;
+  }
 
   const { error } = await client
     .from("recruits")
-    .insert({name,store_id,source,status,offer_notice_date,start_date,memo});
+    .insert({
+      name,
+      store_id,
+      source,
+      status,
+      offer_notice_date,
+      start_date,
+      memo
+    });
 
-  if(error){
-    alert("登録失敗");
+  if (error) {
+    alert("登録に失敗しました");
     console.error(error);
     return;
   }
 
   document.getElementById("recruitForm").reset();
-  loadRecruits();
+  if (storesCache.length > 0) {
+    document.getElementById("store").value = String(storesCache[0].id);
+  }
+
+  await loadRecruits();
 });
 
 function escapeHtml(str){
   return String(str)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 (async function init(){
