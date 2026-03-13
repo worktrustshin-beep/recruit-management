@@ -152,6 +152,11 @@ th{
     </div>
 
     <div class="form-group">
+      <label for="offer_notice_date">内定通知日</label>
+      <input type="date" id="offer_notice_date">
+    </div>
+
+    <div class="form-group">
       <label for="start_date">入社予定日</label>
       <input type="date" id="start_date">
     </div>
@@ -176,6 +181,7 @@ th{
         <th>店舗</th>
         <th>媒体</th>
         <th>ステータス</th>
+        <th>内定通知日</th>
         <th>入社予定</th>
         <th>メモ</th>
         <th>操作</th>
@@ -234,6 +240,7 @@ async function loadRecruits(){
       name,
       source,
       status,
+      offer_notice_date,
       start_date,
       memo,
       store_id,
@@ -290,6 +297,7 @@ async function loadRecruits(){
       <td>${escapeHtml(r.stores?.name||"")}</td>
       <td>${escapeHtml(r.source||"")}</td>
       <td>${escapeHtml(r.status||"")}</td>
+      <td>${escapeHtml(r.offer_notice_date||"")}</td>
       <td>${escapeHtml(r.start_date||"")}</td>
       <td>${escapeHtml(r.memo||"")}</td>
       <td>
@@ -359,12 +367,13 @@ document.getElementById("recruitForm").addEventListener("submit", async (e) => {
   const store_id = document.getElementById("store").value;
   const source = document.getElementById("source").value;
   const status = document.getElementById("status").value;
+  const offer_notice_date = document.getElementById("offer_notice_date").value;
   const start_date = document.getElementById("start_date").value;
   const memo = document.getElementById("memo").value;
 
   const { error } = await client
     .from("recruits")
-    .insert({name,store_id,source,status,start_date,memo});
+    .insert({name,store_id,source,status,offer_notice_date,start_date,memo});
 
   if(error){
     alert("登録失敗");
