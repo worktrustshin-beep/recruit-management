@@ -163,6 +163,49 @@ th{
   padding:24px 10px;
 }
 
+
+.summary-wrap{
+  padding:16px 20px;
+}
+.summary-header,
+.summary-subheader{
+  font-size:16px;
+  font-weight:700;
+  margin-bottom:12px;
+}
+.summary-subheader{
+  margin-top:16px;
+}
+.summary-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+  gap:12px;
+}
+.summary-card{
+  background:#fafafa;
+  border:1px solid #ddd;
+  border-radius:10px;
+  padding:14px 16px;
+}
+.summary-card-label{
+  font-size:13px;
+  color:#666;
+  margin-bottom:6px;
+}
+.summary-card-value{
+  font-size:28px;
+  font-weight:700;
+  line-height:1.1;
+}
+.summary-table{
+  width:100%;
+  min-width:700px;
+}
+.summary-empty{
+  color:#666;
+  padding:8px 2px 2px;
+}
+
 /* status colors */
 .status-内定 td{background:#b0e0e6;}
 .status-承諾 td{background:#7fffd4;}
@@ -179,6 +222,25 @@ th{
     <button type="button" class="month-label-btn" id="monthLabelBtn">----</button>
     <button type="button" class="month-nav-btn" id="nextMonthBtn">▶</button>
     <input type="month" id="monthPicker" class="month-picker-hidden">
+  </div>
+</div>
+
+<div class="wrap summary-wrap" id="monthlySummaryWrap">
+  <div class="summary-header">月間採用サマリー（承諾）</div>
+  <div class="summary-cards" id="summaryCards"></div>
+  <div class="summary-table-wrap" id="storeSummarySection" style="display:none;">
+    <div class="summary-subheader">店舗別採用数（承諾）</div>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>店舗</th>
+          <th>クックビズ</th>
+          <th>飲食店.com</th>
+          <th>合計</th>
+        </tr>
+      </thead>
+      <tbody id="storeSummaryBody"></tbody>
+    </table>
   </div>
 </div>
 
@@ -320,6 +382,7 @@ async function loadRecruits(){
   renderMonthLabel();
 
   const filtered = recruits.filter(r => formatMonthKey(r.offer_notice_date) === currentMonthKey);
+  renderMonthlySummary(filtered);
   const tbody = document.getElementById("recruitList");
   tbody.innerHTML = "";
 
@@ -390,6 +453,68 @@ async function loadRecruits(){
     }
 
     tbody.appendChild(tr);
+  });
+}
+
+
+function renderMonthlySummary(filteredRecruits){
+  const accepted = filteredRecruits.filter(r => r.status === "承諾");
+  const summaryCards = document.getElementById("summaryCards");
+  const storeSummarySection = document.getElementById("storeSummarySection");
+  const storeSummaryBody = document.getElementById("storeSummaryBody");
+
+  const cookbizCount = accepted.filter(r => r.source === "クックビズ").length;
+  const inshokuCount = accepted.filter(r => r.source === "飲食店.com").length;
+  const totalCount = accepted.length;
+
+  summaryCards.innerHTML = `
+    <div class="summary-card">
+      <div class="summary-card-label">クックビズ</div>
+      <div class="summary-card-value">${cookbizCount}<span style="font-size:16px;font-weight:600;"> 名</span></div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">飲食店.com</div>
+      <div class="summary-card-value">${inshokuCount}<span style="font-size:16px;font-weight:600;"> 名</span></div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">合計</div>
+      <div class="summary-card-value">${totalCount}<span style="font-size:16px;font-weight:600;"> 名</span></div>
+    </div>
+  `;
+
+  const storeMap = new Map();
+  accepted.forEach(r => {
+    const storeName = r.stores?.name || "未設定";
+    if (!storeMap.has(storeName)) {
+      storeMap.set(storeName, { storeName, cookbiz: 0, inshoku: 0, total: 0 });
+    }
+    const row = storeMap.get(storeName);
+    if (r.source === "クックビズ") row.cookbiz += 1;
+    if (r.source === "飲食店.com") row.inshoku += 1;
+    row.total += 1;
+  });
+
+  const storeRows = Array.from(storeMap.values())
+    .filter(row => row.total > 0)
+    .sort((a, b) => b.total - a.total || b.cookbiz - a.cookbiz || a.storeName.localeCompare(b.storeName, 'ja'));
+
+  storeSummaryBody.innerHTML = "";
+  if (storeRows.length === 0) {
+    storeSummarySection.style.display = "block";
+    storeSummaryBody.innerHTML = `<tr class="empty-row"><td colspan="4">${escapeHtml(formatMonthLabel(currentMonthKey))}の承諾データはありません</td></tr>`;
+    return;
+  }
+
+  storeSummarySection.style.display = "block";
+  storeRows.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(row.storeName)}</td>
+      <td>${row.cookbiz}</td>
+      <td>${row.inshoku}</td>
+      <td>${row.total}</td>
+    `;
+    storeSummaryBody.appendChild(tr);
   });
 }
 
