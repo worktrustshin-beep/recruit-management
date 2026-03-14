@@ -106,6 +106,61 @@ th{
   input[type="text"], input[type="date"], select, button{
     width:100%;
   }
+  .page-header{
+    align-items:stretch;
+  }
+  .month-switcher{
+    width:100%;
+  }
+  .month-nav-btn,
+  .month-label-btn{
+    width:auto;
+  }
+  .month-label-btn{
+    flex:1;
+  }
+}
+
+
+.page-header{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin:0 0 20px 0;
+  flex-wrap:wrap;
+}
+.month-switcher{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.month-nav-btn,
+.month-label-btn{
+  background:#fff;
+  border:1px solid #ccc;
+  border-radius:999px;
+  height:40px;
+}
+.month-nav-btn{
+  min-width:40px;
+  padding:0 12px;
+}
+.month-label-btn{
+  min-width:140px;
+  font-weight:600;
+}
+.month-picker-hidden{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+  width:0;
+  height:0;
+}
+.empty-row td{
+  background:#fff;
+  color:#666;
+  text-align:center;
+  padding:24px 10px;
 }
 
 /* status colors */
@@ -117,7 +172,15 @@ th{
 </head>
 <body>
 
-<h1>採用管理システム</h1>
+<div class="page-header">
+  <h1>採用管理システム</h1>
+  <div class="month-switcher">
+    <button type="button" class="month-nav-btn" id="prevMonthBtn">◀</button>
+    <button type="button" class="month-label-btn" id="monthLabelBtn">----</button>
+    <button type="button" class="month-nav-btn" id="nextMonthBtn">▶</button>
+    <input type="month" id="monthPicker" class="month-picker-hidden">
+  </div>
+</div>
 
 <div class="wrap">
   <form id="recruitForm">
@@ -195,6 +258,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let storesCache = [];
 let editingId = null;
+let currentMonthKey = "";
 
 async function loadStores(){
   const { data, error } = await client
@@ -242,6 +306,7 @@ async function loadRecruits(){
       store_id,
       stores(name)
     `)
+    .order("offer_notice_date", { ascending: false })
     .order("id", { ascending: false });
 
   if (error) {
@@ -250,10 +315,23 @@ async function loadRecruits(){
     return;
   }
 
+  const recruits = data || [];
+  initializeCurrentMonth(recruits);
+  renderMonthLabel();
+
+  const filtered = recruits.filter(r => formatMonthKey(r.offer_notice_date) === currentMonthKey);
   const tbody = document.getElementById("recruitList");
   tbody.innerHTML = "";
 
-  data.forEach(r => {
+  if (filtered.length === 0) {
+    const tr = document.createElement("tr");
+    tr.className = "empty-row";
+    tr.innerHTML = `<td colspan="8">${escapeHtml(formatMonthLabel(currentMonthKey))}のデータはありません</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  filtered.forEach(r => {
     const tr = document.createElement("tr");
 
     if (editingId === r.id) {
@@ -305,7 +383,6 @@ async function loadRecruits(){
       `;
     }
 
-    
     if(!editingId || editingId !== r.id){
       if(r.status==="内定") tr.classList.add("status-内定");
       if(r.status==="承諾") tr.classList.add("status-承諾");
@@ -314,6 +391,43 @@ async function loadRecruits(){
 
     tbody.appendChild(tr);
   });
+}
+
+function formatMonthKey(dateStr){
+  if (!dateStr) return "";
+  return String(dateStr).slice(0, 7);
+}
+
+function formatMonthLabel(monthKey){
+  if (!monthKey || !monthKey.includes("-")) return "年月未設定";
+  const [year, month] = monthKey.split("-");
+  return `${year}/${month}月`;
+}
+
+function shiftMonth(monthKey, diff){
+  const base = monthKey && monthKey.includes("-") ? `${monthKey}-01` : new Date().toISOString().slice(0, 10);
+  const d = new Date(base + "T00:00:00");
+  d.setMonth(d.getMonth() + diff);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function initializeCurrentMonth(recruits){
+  if (currentMonthKey) return;
+  const months = recruits
+    .map(r => formatMonthKey(r.offer_notice_date))
+    .filter(Boolean)
+    .sort();
+
+  currentMonthKey = months.length ? months[months.length - 1] : new Date().toISOString().slice(0, 7);
+}
+
+function renderMonthLabel(){
+  const labelBtn = document.getElementById("monthLabelBtn");
+  const monthPicker = document.getElementById("monthPicker");
+  labelBtn.textContent = formatMonthLabel(currentMonthKey);
+  monthPicker.value = currentMonthKey;
 }
 
 function startEdit(id){
@@ -334,6 +448,10 @@ async function saveEdit(id){
   const offer_notice_date = document.getElementById(`edit_offer_notice_date_${id}`).value || null;
   const start_date = document.getElementById(`edit_start_date_${id}`).value || null;
   const memo = document.getElementById(`edit_memo_${id}`).value.trim();
+
+  if (offer_notice_date) {
+    currentMonthKey = formatMonthKey(offer_notice_date);
+  }
 
   if (!name) {
     alert("氏名を入力してください");
@@ -396,6 +514,10 @@ document.getElementById("recruitForm").addEventListener("submit", async (e) => {
   const start_date = document.getElementById("start_date").value || null;
   const memo = document.getElementById("memo").value.trim();
 
+  if (offer_notice_date) {
+    currentMonthKey = formatMonthKey(offer_notice_date);
+  }
+
   if (!name) {
     alert("氏名を入力してください");
     return;
@@ -424,6 +546,33 @@ document.getElementById("recruitForm").addEventListener("submit", async (e) => {
     document.getElementById("store").value = String(storesCache[0].id);
   }
 
+  await loadRecruits();
+});
+
+document.getElementById("prevMonthBtn").addEventListener("click", async () => {
+  currentMonthKey = shiftMonth(currentMonthKey, -1);
+  editingId = null;
+  renderMonthLabel();
+  await loadRecruits();
+});
+
+document.getElementById("nextMonthBtn").addEventListener("click", async () => {
+  currentMonthKey = shiftMonth(currentMonthKey, 1);
+  editingId = null;
+  renderMonthLabel();
+  await loadRecruits();
+});
+
+document.getElementById("monthLabelBtn").addEventListener("click", () => {
+  document.getElementById("monthPicker").showPicker?.();
+  document.getElementById("monthPicker").click();
+});
+
+document.getElementById("monthPicker").addEventListener("change", async (e) => {
+  if (!e.target.value) return;
+  currentMonthKey = e.target.value;
+  editingId = null;
+  renderMonthLabel();
   await loadRecruits();
 });
 
