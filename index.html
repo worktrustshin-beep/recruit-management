@@ -107,6 +107,12 @@ th{
     width:100%;
   }
 }
+
+/* status colors */
+.status-内定 td{background:#b0e0e6;}
+.status-承諾 td{background:#7fffd4;}
+.status-辞退 td{background:#778899;color:#fff;}
+
 </style>
 </head>
 <body>
@@ -299,6 +305,13 @@ async function loadRecruits(){
       `;
     }
 
+    
+    if(!editingId || editingId !== r.id){
+      if(r.status==="内定") tr.classList.add("status-内定");
+      if(r.status==="承諾") tr.classList.add("status-承諾");
+      if(r.status==="辞退") tr.classList.add("status-辞退");
+    }
+
     tbody.appendChild(tr);
   });
 }
@@ -318,8 +331,8 @@ async function saveEdit(id){
   const store_id = Number(document.getElementById(`edit_store_${id}`).value);
   const source = document.getElementById(`edit_source_${id}`).value;
   const status = document.getElementById(`edit_status_${id}`).value;
-  const offer_notice_date = document.getElementById(`edit_offer_notice_date_${id}`).value;
-  const start_date = document.getElementById(`edit_start_date_${id}`).value;
+  const offer_notice_date = document.getElementById(`edit_offer_notice_date_${id}`).value || null;
+  const start_date = document.getElementById(`edit_start_date_${id}`).value || null;
   const memo = document.getElementById(`edit_memo_${id}`).value.trim();
 
   if (!name) {
@@ -327,25 +340,21 @@ async function saveEdit(id){
     return;
   }
 
-  const payload = {
-    name,
-    store_id,
-    source,
-    status,
-    memo
-  };
-
-  payload.offer_notice_date = offer_notice_date || null;
-  payload.start_date = start_date || null;
-
   const { error } = await client
     .from("recruits")
-    .update(payload)
+    .update({
+      name,
+      store_id,
+      source,
+      status,
+      offer_notice_date,
+      start_date,
+      memo
+    })
     .eq("id", id);
 
   if (error) {
-    alert(`更新に失敗しました
-${error.message || ""}`);
+    alert("更新に失敗しました");
     console.error(error);
     return;
   }
@@ -383,8 +392,8 @@ document.getElementById("recruitForm").addEventListener("submit", async (e) => {
   const store_id = Number(document.getElementById("store").value);
   const source = document.getElementById("source").value;
   const status = document.getElementById("status").value;
-  const offer_notice_date = document.getElementById("offer_notice_date").value;
-  const start_date = document.getElementById("start_date").value;
+  const offer_notice_date = document.getElementById("offer_notice_date").value || null;
+  const start_date = document.getElementById("start_date").value || null;
   const memo = document.getElementById("memo").value.trim();
 
   if (!name) {
@@ -392,24 +401,20 @@ document.getElementById("recruitForm").addEventListener("submit", async (e) => {
     return;
   }
 
-  const payload = {
-    name,
-    store_id,
-    source,
-    status,
-    memo
-  };
-
-  if (offer_notice_date) payload.offer_notice_date = offer_notice_date;
-  if (start_date) payload.start_date = start_date;
-
   const { error } = await client
     .from("recruits")
-    .insert([payload]);
+    .insert({
+      name,
+      store_id,
+      source,
+      status,
+      offer_notice_date,
+      start_date,
+      memo
+    });
 
   if (error) {
-    alert(`登録に失敗しました
-${error.message || ""}`);
+    alert("登録に失敗しました");
     console.error(error);
     return;
   }
