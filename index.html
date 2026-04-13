@@ -261,6 +261,7 @@ th{
       <select id="source">
         <option value="飲食店.com">飲食店.com</option>
         <option value="クックビズ">クックビズ</option>
+        <option value="人材派遣">人材派遣</option>
       </select>
     </div>
 
@@ -409,6 +410,7 @@ async function loadRecruits(){
           <select class="inline-select" id="edit_source_${r.id}">
             <option value="飲食店.com" ${r.source === "飲食店.com" ? "selected" : ""}>飲食店.com</option>
             <option value="クックビズ" ${r.source === "クックビズ" ? "selected" : ""}>クックビズ</option>
+            <option value="人材派遣" ${r.source === "人材派遣" ? "selected" : ""}>人材派遣</option>
           </select>
         </td>
         <td>
